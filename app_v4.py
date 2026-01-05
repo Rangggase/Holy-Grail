@@ -3,12 +3,32 @@ import pandas as pd
 import tensorflow as tf
 import pickle
 import os
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
-# --- 1. SETUP HALAMAN (WAJIB DI ATAS) ---
+# --- IMPORT MODULES ---
+try:
+    from kasir_view import show_kasir_page
+    from admin_view import show_admin_dashboard
+except ImportError as e:
+    st.error(f"❌ Error Import: {e}")
+    st.stop()
+
+# --- KONFIGURASI DATABASE (WAJIB SECRETS UNTUK CLOUD) ---
+# Kita tidak bisa pakai Localhost di Cloud, jadi kita pakai logika ini:
+try:
+    if "postgres" in st.secrets:
+        db = st.secrets["postgres"]
+        DATABASE_URL = f"postgresql://{db['user']}:{db['password']}@{db['host']}:{db['port']}/{db['dbname']}"
+    else:
+        # Fallback Localhost (Hanya jalan jika file secrets tidak ada/Laptop)
+        DATABASE_URL = "postgresql://postgres:admin123@localhost:5432/food_delivery_db"
+except Exception:
+    DATABASE_URL = "postgresql://postgres:admin123@localhost:5432/food_delivery_db"
+
+# --- SETUP HALAMAN ---
 st.set_page_config(page_title="Final Project", layout="wide", page_icon="⚡", initial_sidebar_state="collapsed")
 
-# --- 2. CSS GLOBAL ---
+# --- CSS GLOBAL (TIDAK DIUBAH) ---
 st.markdown("""
 <style>
     .stApp { background-color: #0e1117; background-image: radial-gradient(circle at center, #1f2937 0%, #0e1117 100%); }
@@ -18,75 +38,54 @@ st.markdown("""
     .login-divider { display: flex; align-items: center; color: #64748b; margin: 20px 0; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
     .login-divider::before, .login-divider::after { content: ""; flex: 1; border-bottom: 1px solid #334155; margin: 0 10px; }
     div[data-testid="stButton"] > button:first-child { background: linear-gradient(to right, #4f46e5, #7c3aed); color: white; border: none; border-radius: 12px; font-weight:700; }
+    .bill-box { background-color: #ffffff; border-radius: 16px; padding: 20px; border: 1px solid #eef2f6; color: black; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. KONEKSI DATABASE (SUPER STRICT) ---
-# Kita hapus opsi localhost. Kalau gagal, STOP aplikasi.
-try:
-    if "postgres" in st.secrets:
-        db = st.secrets["postgres"]
-        DATABASE_URL = f"postgresql://{db['user']}:{db['password']}@{db['host']}:{db['port']}/{db['dbname']}"
-    else:
-        st.error("❌ ERROR FATAL: Secrets '[postgres]' tidak ditemukan!")
-        st.info("💡 Solusi: Buka Streamlit Cloud -> Settings -> Secrets. Pastikan isinya dimulai dengan [postgres]")
-        st.stop()
-except Exception as e:
-    st.error(f"❌ Terjadi kesalahan saat membaca Secrets: {e}")
-    st.stop()
+# Helper Logo
+def get_logo_svg(width="100%", height="100%"):
+    return f"""<svg width="{width}" height="{height}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad_spark" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" /><stop offset="50%" style="stop-color:#818cf8;stop-opacity:1" /><stop offset="100%" style="stop-color:#e879f9;stop-opacity:1" /></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M 70 20 A 35 35 0 1 0 70 80" fill="none" stroke="url(#grad_spark)" stroke-width="12" stroke-linecap="round" filter="url(#glow)" /><path d="M 60 10 L 45 45 L 65 45 L 40 90" fill="none" stroke="#ffffff" stroke-width="0" fill-opacity="1"><animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" /></path><polygon points="75,5 55,45 75,45 55,95 85,50 65,50" fill="url(#grad_spark)" transform="translate(-10, 0)" filter="url(#glow)"/></svg>"""
 
-# --- 4. LOAD RESOURCES (MODEL & DATABASE) ---
+# --- LOAD RESOURCES SQL ---
 @st.cache_resource
 def get_resources():
-    # A. KONEKSI DATABASE
+    print(f"🔌 Mencoba koneksi ke Database...")
     try:
         engine = create_engine(DATABASE_URL)
-        # Test koneksi (Penting!)
         with engine.connect() as conn:
             pass 
-    except Exception as e:
-        st.error(f"❌ Gagal Konek ke Neon Database: {e}")
-        return None, None, None, None
-
-    # B. LOAD MODEL AI (AUTO DETECT)
-    # Cek file Cloud dulu, baru lokal
-    if os.path.exists('ncf_model_sql.h5'):
-        model_path = 'ncf_model_sql.h5'
-        encoder_path = 'encoders_sql.pkl'
-    elif os.path.exists('models/context_model.h5'): # Fallback laptop
+        
+        # --- KEMBALI KE PATH AWAL (MODELS FOLDER) ---
+        # Pastikan di GitHub ada folder 'models' berisi file ini!
         model_path = 'models/context_model.h5'
         encoder_path = 'models/context_encoders.pkl'
-    else:
-        st.warning("⚠️ Model AI tidak ditemukan. Rekomendasi akan error.")
-        return engine, None, None, None
+        
+        if os.path.exists(model_path) and os.path.exists(encoder_path):
+            # Load Model AI
+            model_ncf = tf.keras.models.load_model(model_path, compile=False)
+            
+            # Load Encoders
+            with open(encoder_path, 'rb') as f: 
+                data = pickle.load(f)
+            
+            # --- FIX: AMBIL DICTIONARY KEY DENGAN AMAN ---
+            # Ini mengatasi beda versi 'user_id' vs 'user_encoder'
+            u_enc = data.get('user_id') if 'user_id' in data else data.get('user_encoder')
+            m_enc = data.get('menu_id') if 'menu_id' in data else data.get('item_encoder')
 
-    try:
-        model_ncf = tf.keras.models.load_model(model_path, compile=False)
-        with open(encoder_path, 'rb') as f: 
-            data = pickle.load(f)
-        
-        # Ambil encoder dengan aman
-        u_enc = data.get('user_id') if 'user_id' in data else data.get('user_encoder')
-        m_enc = data.get('menu_id') if 'menu_id' in data else data.get('item_encoder')
-        
-        return engine, model_ncf, u_enc, m_enc
+            return engine, model_ncf, u_enc, m_enc
+        else:
+            st.warning(f"⚠️ FILE TIDAK DITEMUKAN: {model_path}")
+            st.info("Pastikan di GitHub ada folder 'models' dan isinya lengkap.")
+            return engine, None, None, None
 
     except Exception as e:
-        st.warning(f"⚠️ Gagal load model AI: {e}")
-        return engine, None, None, None
+        st.error(f"❌ Error System: {e}")
+        return None, None, None, None
 
 engine, model_ncf, user_enc, item_enc = get_resources()
 
-# --- 5. IMPORT HALAMAN LAIN (SETELAH KONEKSI AMAN) ---
-try:
-    from kasir_view import show_kasir_page
-    from admin_view import show_admin_dashboard
-except ImportError as e:
-    st.error(f"❌ Error Import File: {e}")
-    st.stop()
-
-# --- 6. LOGIC APP UTAMA ---
-# Helper Data Functions
+# Load Helper Data
 def get_data_menu():
     if engine is None: return pd.DataFrame()
     return pd.read_sql("SELECT * FROM menu", engine)
@@ -105,10 +104,7 @@ def get_data_transaksi():
         df['order_datetime'] = pd.to_datetime(df['order_datetime'])
     return df
 
-def get_logo_svg(width="100%", height="100%"):
-    return f"""<svg width="{width}" height="{height}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M 50 10 L 10 90 L 90 90 Z" fill="#6366f1"/></svg>"""
-
-# Navigasi & Routing
+# --- NAVIGASI ---
 if 'page' not in st.session_state: st.session_state['page'] = 'landing'
 if 'cart' not in st.session_state: st.session_state['cart'] = {}
 
@@ -116,6 +112,7 @@ def navigate_to(page):
     st.session_state['page'] = page
     st.rerun()
 
+# --- ROUTING ---
 if st.session_state['page'] == 'landing':
     # HALAMAN LOGIN
     st.markdown("""<style>[data-testid="collapsedControl"] { display: none; }</style>""", unsafe_allow_html=True)
@@ -123,7 +120,7 @@ if st.session_state['page'] == 'landing':
     with col_center:
         st.markdown('<div class="login-card-container">', unsafe_allow_html=True)
         st.markdown(f"""<div style="display: flex; justify-content: center; margin-bottom: 15px;">{get_logo_svg(width="60", height="60")}</div>""", unsafe_allow_html=True)
-        st.markdown("""<h1 class="login-title">HOLY GRAIL POS</h1><p class="login-subtitle">Sistem Kasir Cerdas & Terintegrasi</p>""", unsafe_allow_html=True)
+        st.markdown("""<h1 class="login-title"></h1><p class="login-subtitle"></p>""", unsafe_allow_html=True)
 
         if st.button("🏪 Masuk Kasir", key="btn_kasir_primary", use_container_width=True): navigate_to('kasir_main')
         st.markdown("""<div class="login-divider">ADMIN ACCESS</div>""", unsafe_allow_html=True)
