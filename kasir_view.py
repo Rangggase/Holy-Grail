@@ -2,25 +2,32 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-import tensorflow as tf
+import os
 from datetime import datetime
 from sqlalchemy import text
 
 # ==========================================
-# 🧠 KONFIGURASI MODEL (AI 70 MENU)
+# 🧠 LOAD RESOURCES (HANYA ENCODER)
 # ==========================================
-MODEL_PATH = 'models/context_model.h5'
-ENCODER_PATH = 'models/context_encoders.pkl'
-
+# Kita tidak perlu load Model lagi, karena sudah dikirim dari app_v4.py
+# Kita hanya perlu load Encoder untuk translate Cuaca/Waktu
 @st.cache_resource
-def load_ai_brain():
+def load_encoders_only():
     try:
-        model = tf.keras.models.load_model(MODEL_PATH)
-        with open(ENCODER_PATH, "rb") as f:
+        # 1. Cek File di Root (Prioritas Cloud/GitHub)
+        if os.path.exists('encoders_sql.pkl'):
+            path = 'encoders_sql.pkl'
+        # 2. Cek File di Folder models (Prioritas Lokal)
+        elif os.path.exists('models/context_encoders.pkl'):
+            path = 'models/context_encoders.pkl'
+        else:
+            return None
+
+        with open(path, "rb") as f:
             encoders = pickle.load(f)
-        return model, encoders
-    except Exception as e:
-        return None, None
+        return encoders
+    except Exception:
+        return None
 
 # ==========================================
 # 🏷️ KNOWLEDGE BASE (TAGS)
@@ -101,11 +108,13 @@ def apply_hybrid_boost(row, weather, group_size, time_now):
     return row['ai_score'] + boost
 
 # ==========================================
-# 🖥️ UI KASIR (LENGKAP: BAYAR + STRUK)
+# 🖥️ UI KASIR (FIXED FOR CLOUD)
 # ==========================================
-def show_kasir_page(engine, df_menu, model_ignored, user_enc_ignored, item_enc_ignored, navigate_to, get_logo_svg):
+# Perhatikan argumen 'model_ai' sekarang dipakai (tidak di-ignore)
+def show_kasir_page(engine, df_menu, model_ai, user_enc_ignored, item_enc_ignored, navigate_to, get_logo_svg):
     
-    model_ai, encoders = load_ai_brain()
+    # Load kamus encoder (untuk translate cuaca/waktu)
+    encoders = load_encoders_only()
 
     # CSS Styles
     st.markdown("""
@@ -126,15 +135,12 @@ def show_kasir_page(engine, df_menu, model_ignored, user_enc_ignored, item_enc_i
         
         # Debug AI Brain Status
         with st.expander("🔍 System Status"):
-            if encoders:
-                st.write(f"🧠 AI Menu Memory: {len(encoders['menu_id'].classes_)}")
-                st.write(f"📚 DB Menu Count: {len(df_menu)}")
-                if len(encoders['menu_id'].classes_) != len(df_menu):
-                    st.error("⚠️ DATA BELUM SINKRON")
-                else:
-                    st.success("✅ AI & DB SINKRON")
+            if model_ai and encoders:
+                st.write(f"🧠 AI Model: Aktif")
+                st.write(f"📚 Menu DB: {len(df_menu)} Item")
+                st.success("✅ SYSTEM ONLINE")
             else:
-                st.error("AI Offline")
+                st.error("⚠️ AI / Encoders Offline")
 
         if st.button("🏠 Keluar", use_container_width=True): navigate_to('landing')
 
@@ -188,26 +194,40 @@ def show_kasir_page(engine, df_menu, model_ignored, user_enc_ignored, item_enc_i
         # AI Prediction
         if not rec_df.empty:
             try:
+                # Encode Context
                 ctx_weather_id = encoders['weather'].transform([weather])[0]
                 ctx_time_id = encoders['time_of_day'].transform([time_now])[0] 
                 ctx_group_id = encoders['group_size'].transform([group_size])[0]
                 
+                # Encode User
                 u_id_enc = 0
-                if cust_status == "Lama" and str(cust_id) in encoders['user_id'].classes_:
-                    u_id_enc = encoders['user_id'].transform([str(cust_id)])[0]
+                # Cek kunci 'user_id' atau 'user_encoder' (Biar aman)
+                u_classes = encoders['user_id'].classes_ if 'user_id' in encoders else encoders['user_encoder'].classes_
+                u_encoder = encoders['user_id'] if 'user_id' in encoders else encoders['user_encoder']
                 
+                if cust_status == "Lama" and str(cust_id) in u_classes:
+                    u_id_enc = u_encoder.transform([str(cust_id)])[0]
+                
+                # Encode Menu
+                m_classes = encoders['menu_id'].classes_ if 'menu_id' in encoders else encoders['item_encoder'].classes_
+                m_encoder = encoders['menu_id'] if 'menu_id' in encoders else encoders['item_encoder']
+
                 rec_df['menu_id_str'] = rec_df['menu_id'].astype(str)
-                valid_menus = rec_df[rec_df['menu_id_str'].isin(encoders['menu_id'].classes_)]
+                valid_menus = rec_df[rec_df['menu_id_str'].isin(m_classes)]
                 
                 if not valid_menus.empty:
-                    m_ids_enc = encoders['menu_id'].transform(valid_menus['menu_id_str'].values)
+                    m_ids_enc = m_encoder.transform(valid_menus['menu_id_str'].values)
                     count = len(m_ids_enc)
+                    
+                    # PREDIKSI
                     scores = model_ai.predict(
                         [np.array([u_id_enc]*count), np.array(m_ids_enc), np.array([ctx_weather_id]*count), 
                          np.array([ctx_time_id]*count), np.array([ctx_group_id]*count)], verbose=0
                     ).flatten()
                     rec_df.loc[valid_menus.index, 'ai_score'] = scores
-            except Exception as e: pass 
+            except Exception as e: 
+                # st.error(f"AI Skip: {e}") # Uncomment utk debug
+                pass 
 
         # Hybrid Boost
         rec_df['final_score'] = rec_df.apply(lambda row: apply_hybrid_boost(row, weather, group_size, time_now), axis=1)
