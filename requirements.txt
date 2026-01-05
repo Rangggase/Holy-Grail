@@ -1,7 +1,7 @@
 streamlit
 pandas==2.2.0
-numpy==1.26.4
-tensorflow-cpu==2.15.0
+numpy
+tensorflow-cpu==2.16.1
 scikit-learn
 plotly
 psycopg2-binary
