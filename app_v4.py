@@ -3,10 +3,9 @@ import pandas as pd
 import tensorflow as tf
 import pickle
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 # --- IMPORT MODULES ---
-# Pastikan file kasir_view.py & admin_view.py ada di folder yang sama
 try:
     from kasir_view import show_kasir_page
     from admin_view import show_admin_dashboard
@@ -14,16 +13,21 @@ except ImportError as e:
     st.error(f"❌ Error Import: {e}")
     st.stop()
 
-# --- KONFIGURASI DATABASE ---
-DB_USER = "postgres"
-DB_PASS = "admin123" 
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "food_delivery_db"
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
 # --- SETUP HALAMAN ---
 st.set_page_config(page_title="Final Project", layout="wide", page_icon="⚡", initial_sidebar_state="collapsed")
+
+# --- KONFIGURASI DATABASE (SUDAH DIPERBAIKI) ---
+# Mengambil data rahasia dari Streamlit Cloud
+try:
+    if "postgres" in st.secrets:
+        db = st.secrets["postgres"]
+        DATABASE_URL = f"postgresql://{db['user']}:{db['password']}@{db['host']}:{db['port']}/{db['dbname']}"
+    else:
+        # Fallback kalau dijalankan di laptop tanpa secrets.toml (Opsional)
+        DATABASE_URL = "postgresql://postgres:admin123@localhost:5432/food_delivery_db"
+except FileNotFoundError:
+    st.error("❌ File secrets tidak ditemukan. Pastikan sudah setting di Streamlit Cloud!")
+    st.stop()
 
 # --- CSS GLOBAL ---
 st.markdown("""
@@ -46,16 +50,22 @@ def get_logo_svg(width="100%", height="100%"):
 # --- LOAD RESOURCES SQL ---
 @st.cache_resource
 def get_resources():
-    print(f"🔌 Mencoba koneksi ke: {DATABASE_URL}")
+    print(f"🔌 Mencoba koneksi ke Database Cloud...")
     try:
         engine = create_engine(DATABASE_URL)
         # Test koneksi langsung
         with engine.connect() as conn:
             pass 
         
-        # --- PATH FILE BARU ---
-        model_path = 'models/context_model.h5'
-        encoder_path = 'models/context_encoders.pkl'
+        # --- PATH FILE (SUDAH DISESUAIKAN DENGAN UPLOAD GITHUB) ---
+        # Prioritas 1: Cek file SQL yang baru
+        if os.path.exists('ncf_model_sql.h5'):
+            model_path = 'ncf_model_sql.h5'
+            encoder_path = 'encoders_sql.pkl'
+        # Prioritas 2: Cek file lama (Fallback)
+        else:
+            model_path = 'context_model.h5'
+            encoder_path = 'context_encoders.pkl'
         
         if os.path.exists(model_path) and os.path.exists(encoder_path):
             # Load Model AI
@@ -66,14 +76,16 @@ def get_resources():
                 data = pickle.load(f)
             
             # --- FIX: KUNCI DICTIONARY DISESUAIKAN ---
-            # Menggunakan 'user_id' dan 'menu_id' sesuai isi file .pkl
-            return engine, model_ncf, data['user_id'], data['menu_id']
+            # Menyesuaikan kunci apakah pakai 'user_id' atau 'user_encoder'
+            u_enc = data.get('user_id') if 'user_id' in data else data.get('user_encoder')
+            m_enc = data.get('menu_id') if 'menu_id' in data else data.get('item_encoder')
+            
+            return engine, model_ncf, u_enc, m_enc
         else:
-            st.warning("⚠️ Model AI tidak ditemukan di folder 'models/'. Pastikan file 'context_model.h5' ada.")
+            st.warning(f"⚠️ Model AI tidak ditemukan. Sistem mencari: {model_path}")
             return engine, None, None, None
 
     except Exception as e:
-        # Tampilkan error merah jika masih gagal
         st.error(f"❌ Error System: {e}")
         return None, None, None, None
 
