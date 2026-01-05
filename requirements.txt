@@ -1,11 +1,8 @@
 streamlit
-pandas
-numpy
+pandas==2.2.0
+numpy==1.26.4
+tensorflow-cpu==2.15.0
 scikit-learn
-tensorflow-cpu
+plotly
 psycopg2-binary
 sqlalchemy
-plotly
-seaborn
-matplotlib
-joblib
