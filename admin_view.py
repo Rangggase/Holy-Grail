@@ -24,7 +24,8 @@ def show_admin_dashboard(df_trx, navigate_to, get_logo_svg):
     total_revenue = df_trx['total_price'].sum()
     total_orders = len(df_trx) 
     avg_order = total_revenue / total_orders if total_orders > 0 else 0
-    best_seller = df_trx['menu_name'].mode()[0] if not df_trx.empty else "-"
+    # Mode bisa error jika data kosong atau multimodal, kita handle aman
+    best_seller = df_trx['menu_name'].mode()[0] if not df_trx['menu_name'].mode().empty else "-"
     
     c1, c2, c3, c4 = st.columns(4)
     with c1: st.markdown(f"<div class='metric-card'><div class='metric-label'>Omzet</div><div class='metric-value'>Rp {total_revenue:,.0f}</div><div class='metric-delta' style='color:#16a34a;'>↗ All Time</div></div>", unsafe_allow_html=True)
@@ -158,4 +159,3 @@ def show_admin_dashboard(df_trx, navigate_to, get_logo_svg):
                 type='primary',
                 use_container_width=True
             )
-       
