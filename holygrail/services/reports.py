@@ -127,3 +127,15 @@ def transaction_table(lines: pd.DataFrame) -> pd.DataFrame:
             "Pembayaran": d["payment_method"],
         }
     ).reset_index(drop=True)
+
+
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def to_safe_csv(df: pd.DataFrame) -> bytes:
+    """CSV UTF-8 (BOM agar Excel membaca benar). Sel teks berawalan = + - @ diberi apostrof (cegah CSV/formula injection)."""
+    safe = df.copy()
+    for col in safe.columns:
+        if safe[col].dtype == object or str(safe[col].dtype).startswith("str"):
+            safe[col] = safe[col].map(lambda v: "'" + v if isinstance(v, str) and v.startswith(_FORMULA_PREFIXES) else v)
+    return safe.to_csv(index=False).encode("utf-8-sig")
