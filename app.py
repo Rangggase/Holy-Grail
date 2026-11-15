@@ -5,25 +5,16 @@ from sqlalchemy import inspect
 
 from holygrail.config import get_settings
 from holygrail.db import make_engine
-from holygrail.ui import admin, kasir, login, theme
-from holygrail.ui.components import brand_header, show_error
+from holygrail.ui import admin, kasir, login, shell, theme
+from holygrail.ui.components import show_error
 
-st.set_page_config(page_title="Holy Grail POS", page_icon=":material/restaurant:", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Holy Grail POS", page_icon=":material/restaurant:", layout="wide", initial_sidebar_state="expanded")
 theme.inject()
 
 
 @st.cache_resource(show_spinner=False)
 def get_engine(url: str):
     return make_engine(url)
-
-
-def _logout() -> None:
-    for key in ("staff", "cart", "receipt", "idem", "cash", "page"):
-        st.session_state.pop(key, None)
-
-
-def _go(page: str) -> None:
-    st.session_state["page"] = page
 
 
 def main() -> None:
@@ -35,6 +26,7 @@ def main() -> None:
         show_error(exc)
         st.stop()
     if not ready:
+        theme.hide_sidebar()
         st.error("Database belum disiapkan. Jalankan perintah berikut di terminal, lalu muat ulang halaman:", icon=":material/database:")
         st.code("python -m scripts.init_db --demo", language="bash")
         st.stop()
@@ -44,30 +36,21 @@ def main() -> None:
         login.render(engine)
         return
 
-    page = st.session_state.get("page", "kasir")
-    if page == "admin" and staff.role != "admin":
-        page = "kasir"
+    requested = st.session_state.get("page") or st.query_params.get("hal")
+    page = shell.resolve_page(requested, staff.role)  # kasir tidak bisa membuka halaman admin
+    st.session_state["page"] = page
 
-    left, right = st.columns([3, 4])
-    with left:
-        st.markdown(brand_header(settings.store_name), unsafe_allow_html=True)
-    with right:
-        cols = st.columns([1.2, 1.2, 1.6, 1.1] if staff.role == "admin" else [1.2, 1.6, 1.1])
-        i = 0
-        cols[i].button("Kasir", icon=":material/point_of_sale:", type="primary" if page == "kasir" else "secondary",
-                       use_container_width=True, on_click=_go, args=("kasir",), key="nav_kasir")
-        i += 1
-        if staff.role == "admin":
-            cols[i].button("Admin", icon=":material/monitoring:", type="primary" if page == "admin" else "secondary",
-                           use_container_width=True, on_click=_go, args=("admin",), key="nav_admin")
-            i += 1
-        cols[i].caption(f"Masuk sebagai {staff.full_name}")
-        cols[i + 1].button("Keluar", icon=":material/logout:", use_container_width=True, on_click=_logout, key="nav_logout")
+    shell.render_sidebar(engine, staff, settings, page)
+    shell.render_top_bar(engine, staff, page)
 
-    if page == "admin":
-        admin.render(engine, staff)
-    else:
+    if page == "kasir":
         kasir.render(engine, staff, settings.store_name)
+    elif page == "dashboard":
+        admin.render_dashboard(engine)
+    elif page == "menu":
+        admin.render_menu(engine, staff)
+    else:
+        admin.render_history(engine)
 
 
 main()

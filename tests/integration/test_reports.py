@@ -49,3 +49,20 @@ def test_csv_export_neutralizes_formula_injection():
     lines = text.splitlines()[1:]
     assert all(l.startswith("'") or l.startswith('"\'') or l.startswith("Budi") for l in (x for x in lines))
     assert "'=HYPERLINK" in text and "'+cmd" in text and "'-1+1" in text and "'@SUM" in text
+
+
+def test_today_summary_top_products_and_payment_mix(engine):
+    nasi, teh = menu_id(engine, "Nasi Goreng Spesial"), menu_id(engine, "Es Teh Manis")
+    _buy(engine, "Budi", [(nasi, 2)], datetime(2026, 5, 3, 10, 0), "a", method="QRIS")                 # 50.000
+    _buy(engine, "Siti", [(teh, 3), (nasi, 1)], datetime(2026, 5, 3, 13, 0), "b", method="Debit/Kredit")  # 46.000
+    _buy(engine, "Budi", [(nasi, 1)], datetime(2026, 5, 4, 9, 0), "c", method="QRIS")                 # 25.000
+    t = r.today_summary(engine, date(2026, 5, 3))
+    assert (t.revenue, t.transactions) == (96_000, 2)
+    assert r.today_summary(engine, date(2030, 1, 1)) == r.TodaySummary(0, 0)
+
+    lines = r.sales_lines(engine, date(2026, 5, 3), date(2026, 5, 4))
+    top = r.top_products(lines, 2)
+    assert list(top.menu) == ["Nasi Goreng Spesial", "Es Teh Manis"] and list(top.terjual) == [4, 3]
+    mix = r.payment_mix(lines)
+    assert dict(zip(mix.metode, mix.transaksi)) == {"QRIS": 2, "Debit/Kredit": 1} and mix.iloc[0].metode == "QRIS"
+    assert r.top_products(lines.iloc[0:0]).empty and r.payment_mix(lines.iloc[0:0]).empty

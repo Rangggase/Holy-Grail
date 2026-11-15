@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     with engine.connect() as conn:
         have = {r[0] for r in conn.execute(select(db.staff.c.username))}
     for user_env, pass_env, default_user, name, role in (
-        ("ADMIN_USERNAME", "ADMIN_PASSWORD", "admin", "Administrator", "admin"),
+        ("ADMIN_USERNAME", "ADMIN_PASSWORD", "admin", "Admin Toko", "admin"),
         ("KASIR_USERNAME", "KASIR_PASSWORD", "kasir", "Kasir Utama", "kasir"),
     ):
         username = os.environ.get(user_env, default_user).strip().lower() or default_user

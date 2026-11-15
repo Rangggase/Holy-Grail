@@ -139,3 +139,37 @@ def to_safe_csv(df: pd.DataFrame) -> bytes:
         if safe[col].dtype == object or str(safe[col].dtype).startswith("str"):
             safe[col] = safe[col].map(lambda v: "'" + v if isinstance(v, str) and v.startswith(_FORMULA_PREFIXES) else v)
     return safe.to_csv(index=False).encode("utf-8-sig")
+
+
+@dataclass(frozen=True)
+class TodaySummary:
+    revenue: int
+    transactions: int
+
+
+def today_summary(engine: Engine, day: date | None = None) -> TodaySummary:
+    """Omzet & jumlah transaksi pada satu hari (default: hari ini). Dipakai bilah konteks."""
+    day = day or date.today()
+    s, e = _bounds(day, day)
+    q = text("SELECT COALESCE(SUM(total), 0), COUNT(*) FROM transactions WHERE created_at >= :start AND created_at < :end").bindparams(
+        bindparam("start", type_=DateTime), bindparam("end", type_=DateTime)
+    )
+    with engine.connect() as conn:
+        revenue, count = conn.execute(q, {"start": s, "end": e}).one()
+    return TodaySummary(int(revenue), int(count))
+
+
+def top_products(lines: pd.DataFrame, n: int = 8) -> pd.DataFrame:
+    """Produk terlaris (semua kategori) berdasarkan jumlah terjual."""
+    if lines.empty:
+        return pd.DataFrame(columns=["menu", "terjual", "omzet"])
+    g = lines.groupby("menu_name").agg(terjual=("qty", "sum"), omzet=("subtotal", "sum")).reset_index().rename(columns={"menu_name": "menu"})
+    return g.sort_values(["terjual", "omzet"], ascending=False).head(n).reset_index(drop=True)
+
+
+def payment_mix(lines: pd.DataFrame) -> pd.DataFrame:
+    """Jumlah transaksi & omzet per metode pembayaran."""
+    if lines.empty:
+        return pd.DataFrame(columns=["metode", "transaksi", "omzet"])
+    g = lines.groupby("payment_method").agg(transaksi=("trx_id", "nunique"), omzet=("subtotal", "sum")).reset_index()
+    return g.rename(columns={"payment_method": "metode"}).sort_values("transaksi", ascending=False).reset_index(drop=True)

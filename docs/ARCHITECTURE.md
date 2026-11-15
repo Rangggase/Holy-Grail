@@ -7,7 +7,8 @@ Aplikasi monolit Streamlit dengan tiga lapisan satu arah: **UI → services → 
 ```mermaid
 flowchart LR
     B[Browser / Tablet kasir] --> A[app.py<br/>router + guard peran]
-    A --> UI[holygrail/ui<br/>login · kasir · admin · theme]
+    A --> SH[ui/shell.py<br/>sidebar · top bar · guard peran]
+    SH --> UI[holygrail/ui<br/>login · kasir · admin · theme]
     UI --> S[holygrail/services<br/>auth · menu · customers · checkout · reports · recommender]
     S --> V[validation.py · security.py]
     S --> D[(SQLite data/holygrail.db<br/>atau PostgreSQL)]
@@ -15,6 +16,10 @@ flowchart LR
 ```
 
 Aturan: `services/` tidak mengimpor Streamlit (bisa diuji tanpa UI); `ui/` tidak menulis SQL.
+
+## App shell dan navigasi
+
+`app.py` memilih halaman dari `st.session_state["page"]` (atau `?hal=` di URL), lalu `shell.resolve_page` mengembalikan `kasir` bila peran tidak berhak. Sidebar menampilkan grup *Operasional* (POS Terminal) dan *Administrasi* (Dasbor Analitik, Menu & Stok, Riwayat Transaksi, hanya untuk admin), footer profil, status koneksi database, dan Keluar. Bilah konteks atas menampilkan judul halaman, tanggal, shift, omzet hari ini, dan stok menipis.
 
 ## Alur transaksi kasir
 

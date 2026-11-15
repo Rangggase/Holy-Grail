@@ -16,9 +16,11 @@ Aplikasi **kasir (Point of Sale) dan manajemen restoran** berbahasa Indonesia, d
 
 ## Fitur
 
-**Kasir** — pencarian/pendaftaran pelanggan otomatis, konteks pesanan (cuaca, rombongan, waktu), saran menu, buku menu per kategori, keranjang, pembayaran Tunai/QRIS/Debit-Kredit (tombol uang cepat), nota + unduh `.txt`, klik ganda tidak membuat transaksi ganda.
+**Antarmuka (app shell ala SaaS/POS komersial)** — sidebar terstruktur (brand, grup *Operasional* dan *Administrasi*, item aktif dengan indikator vertikal, footer profil + status database + Keluar), bilah konteks atas (judul halaman, tanggal, shift, omzet hari ini, stok menipis), chrome bawaan Streamlit disembunyikan, permukaan datar dengan garis 1px, radius 8–12px, angka tabular, satu aksen korporat (hijau pandan).
 
-**Admin** — filter periode; KPI; grafik omzet harian & jam sibuk; menu terlaris makanan/minuman; segmentasi pelanggan (Diamond → Bronze); tambah/ubah menu; penyesuaian stok dengan riwayat; tabel transaksi + ekspor CSV yang aman dari *formula injection*.
+**POS Terminal (kasir)** — split-screen 65/35: kiri konteks pesanan, saran menu, pencarian + *pill-tabs* kategori, grid kartu produk padat (stok dengan lencana warna); kanan panel pesanan *sticky* dengan kontrol −/+ ≥44px, metode bayar *segmented control* (Tunai/QRIS/Debit-Kredit), tombol uang cepat, nota + unduh `.txt`. Klik ganda tidak membuat transaksi ganda.
+
+**Admin** — *Dasbor Analitik* (bento grid: 4 KPI, tren omzet, produk terlaris, jam sibuk, stok menipis, metode pembayaran, segmentasi pelanggan; satu hue hijau, tanpa warna pelangi), *Menu & Stok* (daftar, penyesuaian stok bermutasi, ubah/tambah menu), *Riwayat Transaksi* (filter, ekspor CSV aman dari *formula injection*). Halaman admin tidak muncul dan tidak bisa dibuka oleh peran kasir.
 
 **Keamanan** — password di-hash `scrypt` (tanpa password di kode), login berperan (admin/kasir), pembatas percobaan login per sesi, validasi input ketat, query terparameter, HTML di-*escape*, pesan error ramah tanpa detail teknis, rahasia hanya dari `.env`.
 
@@ -66,15 +68,15 @@ Tutup aplikasi (atau hindari menulis bersamaan) saat mengedit data langsung di D
 
 ## Hasil pengujian (dijalankan pada 16 Nov 2026, Python 3.13.9, Windows)
 
-`pytest --cov=holygrail --cov=scripts` → **87 tes lulus, 0 gagal**, cakupan baris **91%**.
+`pytest --cov=holygrail --cov=scripts` → **120 tes lulus, 0 gagal**, cakupan baris **92%**.
 
 | Jenis | Jumlah | Yang diverifikasi |
 |---|---|---|
-| Unit | 50 | validasi & sanitasi input, hash/verifikasi password, pembatas login, aturan rekomendasi, kontras warna WCAG AA tema |
-| Integrasi | 30 | checkout (total, kembalian, stok, rollback, idempotensi, 6 checkout bersamaan pada stok 3), constraint database (PK/FK/UNIQUE/CHECK), autentikasi, stok, laporan & segmentasi, ekspor CSV aman, `init_db` idempoten |
-| E2E | 7 | `app.py` dijalankan lewat Streamlit AppTest: login gagal & kunci, alur penjualan kasir sampai nota, batas stok, pembatasan akses admin, dasbor admin & penyesuaian stok, logout |
+| Unit | 80 | validasi & sanitasi input, hash/verifikasi password, pembatas login, aturan rekomendasi, **kontras WCAG AA** (teks ≥4,5:1 dan komponen non-teks ≥3:1 untuk semua token), CSS menyembunyikan chrome Streamlit dan bebas gradasi dekoratif, routing & guard halaman per peran, format tanggal/rupiah Indonesia, escape HTML |
+| Integrasi | 31 | checkout (total, kembalian, stok, rollback, idempotensi, 6 checkout bersamaan pada stok 3), constraint database (PK/FK/UNIQUE/CHECK), autentikasi, stok, laporan (KPI, segmen, ringkasan hari ini, produk terlaris, bauran pembayaran), ekspor CSV aman, `init_db` idempoten |
+| E2E | 9 | `app.py` dijalankan lewat Streamlit AppTest: login gagal & kunci, alur penjualan kasir sampai nota, batas stok, sidebar kasir tanpa menu admin + paksa halaman admin ditolak, navigasi sidebar admin (4 halaman), bilah konteks, penyesuaian stok, logout |
 
-Keterbatasan pengujian: E2E memakai `streamlit.testing` (tanpa browser sungguhan). Tampilan visual (desktop 1280px dan tablet 768px) diperiksa manual di browser; belum ada tes regresi visual otomatis.
+Keterbatasan pengujian: E2E memakai `streamlit.testing` (tanpa browser sungguhan). Tampilan visual diperiksa manual di browser pada lebar 1100px dan 768px (tablet); tampilan ≥1280px hanya diperiksa lewat pengukuran DOM, dan tidak ada tes regresi visual otomatis. Kolom pencarian menu memperbarui hasil setelah Enter (batasan `st.text_input`).
 
 ## Struktur folder
 
@@ -83,7 +85,7 @@ app.py                  entry point Streamlit
 holygrail/
   config.py db.py security.py validation.py errors.py
   services/             logika bisnis murni (auth, menu, customers, checkout, reports, recommender)
-  ui/                   theme (design system), components, login, kasir, admin
+  ui/                   theme (design system), components, shell (sidebar + top bar), login, kasir, admin
 scripts/                init_db.py, seed_demo.py
 data/seed/menu.csv      seed menu
 docs/                   ARCHITECTURE.md, schema.sql

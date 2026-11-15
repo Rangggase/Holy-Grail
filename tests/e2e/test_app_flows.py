@@ -104,21 +104,57 @@ def test_cannot_exceed_stock(env):
     assert at.button(key=f"add_{mid}").disabled
 
 
-def test_kasir_cannot_open_admin_page(env):
+def shown(at, needle):
+    return any(needle in m.value for m in at.markdown)
+
+
+def nav_keys(at):
+    return sorted(b.key for b in at.button if b.key and b.key.startswith("nav_"))
+
+
+def test_kasir_sidebar_has_no_admin_navigation_and_cannot_force_admin_page(env):
     at = login(new_app(), "kasir", KASIR_PW)
-    assert [b.key for b in at.button if b.key == "nav_admin"] == []
-    at.session_state["page"] = "admin"  # coba paksa lewat state
-    at.run()
-    assert not any(t.value == "Dasbor admin" for t in at.title)
+    assert nav_keys(at) == ["nav_kasir", "nav_logout"]
+    assert shown(at, "POS Terminal") and shown(at, "Kasir Uji")
+    for forced in ("dashboard", "menu", "riwayat", "admin"):
+        at.session_state["page"] = forced  # coba paksa lewat state
+        at.run()
+        assert not at.exception
+        assert at.session_state["page"] == "kasir"
+        assert not shown(at, "Dasbor Analitik")
 
 
-def test_admin_dashboard_and_stock_adjustment(env):
+def test_admin_sidebar_shell_and_page_navigation(env):
     at = login(new_app(), "admin", ADMIN_PW)
-    at.button(key="nav_admin").click().run()
+    assert nav_keys(at) == ["nav_dashboard", "nav_kasir", "nav_logout", "nav_menu", "nav_riwayat"]
+    assert shown(at, "Operasional") and shown(at, "Administrasi")
+    assert shown(at, "Database: terhubung (SQLite)")  # footer sidebar: status koneksi
+    assert shown(at, "Administrator")                 # footer sidebar: peran
+
+    at.button(key="nav_dashboard").click().run()
+    assert not at.exception and at.session_state["page"] == "dashboard"
+    assert shown(at, "Dasbor Analitik") and shown(at, "Tren omzet")
+
+    at.button(key="nav_riwayat").click().run()
+    assert not at.exception and at.session_state["page"] == "riwayat" and shown(at, "Riwayat Transaksi")
+
+    at.button(key="nav_menu").click().run()
+    assert not at.exception and shown(at, "Daftar menu")
+
+    at.button(key="nav_kasir").click().run()
+    assert not at.exception and shown(at, "Buku menu")
+
+
+def test_top_context_bar_shows_date_shift_and_today_summary(env):
+    at = login(new_app(), "admin", ADMIN_PW)
+    bar = next(m.value for m in at.markdown if 'class="topbar"' in m.value)
+    assert "Shift" in bar and "Hari ini" in bar and "calendar_today" in bar
+
+
+def test_admin_stock_adjustment_from_menu_page(env):
+    at = login(new_app(), "admin", ADMIN_PW)
+    at.button(key="nav_menu").click().run()
     assert not at.exception
-    assert any(t.value == "Dasbor admin" for t in at.title)
-    assert [t.label for t in at.tabs] == ["Ringkasan", "Pelanggan", "Menu & stok", "Transaksi"]
-    # Menyesuaikan stok lewat form admin
     mid = menu_id(env, "Soto Betawi")
     with env.connect() as c:
         before = c.execute(text("select stock from menu where menu_id=:i"), {"i": mid}).scalar()

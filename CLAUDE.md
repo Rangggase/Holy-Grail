@@ -15,7 +15,7 @@ holygrail/
   errors.py             Exception domain (ValidationError, StockError, ...) berpesan Indonesia
   services/             Logika bisnis MURNI — tanpa import streamlit
     auth.py  menu.py  customers.py  checkout.py  reports.py  recommender.py
-  ui/                   Semua kode Streamlit: theme.py (design system), components.py, login.py, kasir.py, admin.py
+  ui/                   Semua kode Streamlit: theme.py (design system + CSS), components.py, shell.py (sidebar, top bar, guard halaman), login.py, kasir.py, admin.py
 scripts/                init_db.py, seed_demo.py (CLI)
 data/seed/menu.csv      Seed menu (70 item). Database hidup: data/holygrail.db (gitignored)
 tests/                  unit/, integration/, e2e/ (streamlit AppTest)
@@ -46,6 +46,10 @@ pytest                                                # unit + integrasi + e2e
 ```
 
 ## Gaya & desain
+- App shell: `shell.NAV` mendefinisikan halaman (`kasir`, `dashboard`, `menu`, `riwayat`); halaman admin diblokir untuk peran kasir lewat `shell.resolve_page`. Tombol nav memakai key `nav_<halaman>`; item aktif = container key `nav_item_on_<halaman>`.
+- Palet: `#F8FAFC` latar, `#FFFFFF` kartu, `#E2E8F0` garis, `#0F172A` teks, satu aksen hijau pandan `#0F5C4D`. Tanpa gradasi dekoratif, tanpa bayangan tebal, tanpa emoji sebagai ikon (pakai Material Symbols). Grafik satu hue.
+- Chrome Streamlit (header, dekorasi, menu, footer) disembunyikan lewat CSS di `theme.css()`; tombol buka-sidebar tetap tersedia untuk tablet. Setelah mengubah `theme.py`, **restart `streamlit run`** (modul ter-cache).
+- Pembungkus markdown Streamlit bisa bertinggi 0 untuk HTML tanpa blok — gunakan `<p>` atau paksa tinggi (lihat `.side-group`).
 - Design system ada di `holygrail/ui/theme.py` (token warna/tipografi). Kontras teks ≥ WCAG AA (diuji di `tests/unit/test_theme_contrast.py`).
 - Angka & harga: `font-variant-numeric: tabular-nums`. Target sentuh ≥ 44px (tablet kasir).
 - Commit: Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`).
