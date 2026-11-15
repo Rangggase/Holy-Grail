@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+hg-venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Rahasia & konfigurasi lokal (JANGAN di-commit)
+.env
+.streamlit/secrets.toml
+
+# Database lokal (dibuat ulang lewat `python -m scripts.init_db`)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/legacy/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Artefak uji
+test-artifacts/
