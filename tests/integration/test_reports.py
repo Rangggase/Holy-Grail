@@ -39,3 +39,13 @@ def test_kpis_segments_and_ranges(engine):
 def test_segment_thresholds():
     assert [r.segment_for(v) for v in (0, 999_999, 1_000_000, 3_000_000, 4_500_000, 10_000_000)] == [
         "Bronze", "Bronze", "Silver", "Gold", "Platinum", "Diamond"]
+
+
+def test_csv_export_neutralizes_formula_injection():
+    import pandas as pd
+
+    df = pd.DataFrame({"Pelanggan": ["=HYPERLINK(\"http://x\")", "+cmd", "-1+1", "@SUM(A1)", "Budi"], "Jumlah": [1, 2, 3, 4, 5]})
+    text = r.to_safe_csv(df).decode("utf-8-sig")
+    lines = text.splitlines()[1:]
+    assert all(l.startswith("'") or l.startswith('"\'') or l.startswith("Budi") for l in (x for x in lines))
+    assert "'=HYPERLINK" in text and "'+cmd" in text and "'-1+1" in text and "'@SUM" in text
