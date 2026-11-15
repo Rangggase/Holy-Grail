@@ -1,0 +1,71 @@
+menu_id,menu_name,category,price,stock
+1,Paket Keluarga A (Ayam Bakar Utuh),Paket Jumbo,150000,100
+2,Paket Hemat Ber-4,Paket Jumbo,100000,100
+3,Seafood Platter,Paket Jumbo,250000,100
+4,Bucket Wings Party,Paket Jumbo,120000,100
+5,Pizza Super Supreme,Paket Jumbo,135000,100
+6,Gurame Terbang Asam Manis,Paket Jumbo,85000,100
+7,Martabak Manis Jumbo,Snack,45000,100
+8,Tumpeng Mini Komplit,Paket Jumbo,35000,100
+9,Sate Kambing Kiloan,Paket Jumbo,180000,100
+10,Roti Bakar Komplit,Snack,25000,100
+11,Sop Buntut Sapi,Makanan Berat,75000,100
+12,Soto Betawi,Makanan Berat,45000,100
+13,Rawon Setan,Makanan Berat,38000,100
+14,Bakso Urat Jumbo,Makanan Berat,25000,100
+15,Mie Godog Jawa,Makanan Berat,22000,100
+16,Seblak Komplit,Snack,18000,100
+17,Ramen Kuah Shoyu,Makanan Berat,35000,100
+18,Tongseng Kambing,Makanan Berat,40000,100
+19,Bubur Ayam,Makanan Berat,15000,100
+20,Sayur Asem Jakarta,Makanan Berat,20000,100
+21,Capcay Seafood Kuah,Makanan Berat,28000,100
+22,Nasi Goreng Spesial,Makanan Berat,25000,100
+23,Ayam Penyet,Makanan Berat,22000,100
+24,Bebek Goreng,Makanan Berat,38000,100
+25,Rice Bowl Teriyaki,Makanan Berat,28000,100
+26,Sate Ayam Madura,Makanan Berat,25000,100
+27,Burger Deluxe,Western,45000,100
+28,Steak Sirloin,Western,65000,100
+29,Spaghetti Bolognese,Western,40000,100
+30,Nasi Goreng Gila,Makanan Berat,28000,100
+31,Ayam Geprek Mozzarella,Makanan Berat,25000,100
+32,Rice Bowl Beef Yakiniku,Makanan Berat,35000,100
+33,Pecel Lele Goreng,Makanan Berat,18000,100
+34,Nasi Uduk Komplit,Makanan Berat,15000,100
+35,Nasi Padang Rendang,Makanan Berat,30000,100
+36,Cheese Burger Double,Western,55000,100
+37,Spaghetti Carbonara,Western,42000,100
+38,Chicken Gordon Bleu,Western,50000,100
+39,Fish and Chips,Western,38000,100
+40,Steak Tenderloin Import,Western,95000,100
+41,Caesar Salad,Western,30000,100
+42,Es Teh Manis Jumbo,Minuman,7000,100
+43,Es Jeruk Murni,Minuman,10000,100
+44,Es Campur Teler,Minuman,20000,100
+45,Jus Alpukat,Minuman,18000,100
+46,Soda Gembira,Minuman,15000,100
+47,Milkshake Coklat,Minuman,20000,100
+48,Coca Cola,Minuman,8000,100
+49,Iced Lemon Tea,Minuman,12000,100
+50,Jus Mangga,Minuman,15000,100
+51,Lychee Tea Cold,Minuman,15000,100
+52,Milkshake Strawberry,Minuman,20000,100
+53,Es Kopi Susu Gula Aren,Minuman,18000,100
+54,Sprite,Minuman,8000,100
+55,Air Mineral Botol,Minuman,5000,100
+56,Kopi Hitam Panas,Minuman,15000,100
+57,Teh Tarik Hangat,Minuman,15000,100
+58,Jahe Susu,Minuman,12000,100
+59,Chocolate Hot,Minuman,22000,100
+60,Wedang Ronde,Minuman,15000,100
+61,Kopi Tubruk,Minuman,8000,100
+62,Bandrek Kelapa Muda,Minuman,15000,100
+63,Kentang Goreng,Snack,15000,100
+64,Onion Ring,Snack,18000,100
+65,Pisang Keju Coklat,Snack,15000,100
+66,Dimsum Ayam,Snack,18000,100
+67,Lumpia Kulit Tahu,Snack,20000,100
+68,Tahu Walik Crispy,Snack,12000,100
+69,Cireng Rujak,Snack,12000,100
+70,Singkong Thailand,Snack,15000,100
